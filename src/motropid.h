@@ -22,51 +22,67 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef MOTORPID_H
-#define MOTORPID_H
+#ifndef MOTOR_PID_H
+#define MOTOR_PID_H
 
-#include <Arduino.h>
-#include <Encoder.h>
+#include <Arduino.h>  // Include Arduino standard library
+#include <Encoder.h>  // Include Encoder library
 
 class MotorPID {
 public:
-    // Constructor: Initializes the MotorPID object with encoder and motor pins.
-    MotorPID(int encoderPinA, int encoderPinB, int motorPinPWM, int motorPinDirection);
+    // Constructor
+    MotorPID(int encoderPinA, int encoderPinB, int pwmPin, int directionPin1);
 
-    // Sets the desired position for the motor.
-    void setSetpoint(int target);
+    // Set the desired position for the motor
+    void setSetpoint(int setpoint);
 
-    // Computes the PID control and updates the motor.
+    // Compute PID and update motor state
     void compute();
 
-    // Sets the PID constants.
-    void setPID(float p, float i, float d);
+    // Get the current direction of the motor
+    int getDirection() const;
 
-    // Sets the output limits for the motor PWM.
-    void outputLimits(int min, int max);
+    // Get the current speed of the motor
+    int getSpeed() const;
+
+    // Check if the motor is stopped
+    bool isStopped() const;
 
 private:
-    // Encoder object for reading motor position.
+    // Motor state struct
+    struct MotorState {
+        int speed;       // PWM value representing speed
+        int direction;   // Two-bit value representing direction
+        bool isStopped;  // Boolean indicating whether the motor is stopped
+    };
+
+    MotorState motorState;  // Current state of the motor
+
+    // Encoder object for reading motor position
     Encoder encoder;
 
-    // Motor control pins.
-    int motorPinPWM;
-    int motorPinDirection;
+    // PID parameters
+    double kp;
+    double ki;
+    double kd;
 
-    // Desired position for the motor.
+    // PID variables
+    double previousError;
+    double integral;
+
+    // Motor control pins
+    int pwmPin;
+    int directionPin1;
+
+    // Target position for PID control
     int setpoint;
 
-    // Previous position for computing the derivative.
-    int prevPosition;
+    // Helper function to update motor direction based on PID output
+    void updateDirection(int pidOutput);
 
-    // Integral term for PID control.
-    int integral;
-
-    // PID constants.
-    float Kp, Ki, Kd;
-
-    // Output limits for the motor PWM.
-    int outputMin, outputMax;
+    // Helper function to apply PWM output to control motor speed
+    void applyPWM(int pwmValue);
 };
 
-#endif // MOTORPID_H
+#endif // MOTOR_PID_H
+

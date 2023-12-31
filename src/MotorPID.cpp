@@ -24,74 +24,95 @@ SOFTWARE.
 
 #include "MotorPID.h"
 
-// Constructor: Initializes the MotorPID object with encoder and motor pins.
-MotorPID::MotorPID(int encoderPinA, int encoderPinB, int motorPinPWM, int motorPinDirection)
-    : encoder(encoderPinA, encoderPinB), motorPinPWM(motorPinPWM), motorPinDirection(motorPinDirection) {
-    // Initialize other PID parameters here if needed
-    Kp = 1.0;
-    Ki = 0.0;
-    Kd = 0.0;
+// Constructor
+MotorPID::MotorPID(int encoderPinA, int encoderPinB, int pwmPin, int directionPin1)
+    : encoder(encoderPinA, encoderPinB), pwmPin(pwmPin), directionPin1(directionPin1) {
+    // Initialize motor state
+    motorState.speed = 0;
+    motorState.direction = 0;
+    motorState.isStopped = true;
 
-    // Set up initial variables
-    setpoint = 0;
-    prevPosition = 0;
+    // Initialize PID parameters
+    kp = 0.1;
+    ki = 0.01;
+    kd = 0.1;
+
+    // Initialize PID variables
+    previousError = 0;
     integral = 0;
 
-    // Configure motor pins
-    pinMode(motorPinPWM, OUTPUT);
-    pinMode(motorPinDirection, OUTPUT);
+    // Initialize motor control pins
+    pinMode(pwmPin, OUTPUT);
+    pinMode(directionPin1, OUTPUT);
 
-    // Initialize the PID controller
-    outputLimits(-255, 255);
+    // Set initial direction to brake
+    digitalWrite(directionPin1, LOW);
+
+    // Set initial PWM value to stop the motor
+    analogWrite(pwmPin, 0);
 }
 
-// Sets the desired position for the motor.
-void MotorPID::setSetpoint(int target) {
-    setpoint = target;
+// Set the desired position for the motor
+void MotorPID::setSetpoint(int setpoint) {
+    this->setpoint = setpoint;
 }
 
-// Computes the PID control and updates the motor.
+// Compute PID and update motor state
 void MotorPID::compute() {
-    // Read the current position from the encoder.
-    int currentPosition = encoder.read();
-
-    // Calculate the error between the desired and current positions.
-    int error = setpoint - currentPosition;
-
-    // Update the integral term.
+    // Calculate error and update integral
+    double error = setpoint - encoder.read();
     integral += error;
 
-    // Calculate the derivative term.
-    int derivative = currentPosition - prevPosition;
+    // Calculate PID output
+    double pidOutput = kp * error + ki * integral + kd * (error - previousError);
 
-    // PID calculation
-    int output = Kp * error + Ki * integral + Kd * derivative;
+    // Update motor direction based on PID output
+    updateDirection(pidOutput);
 
-    // Apply output limits
-    output = constrain(output, outputMin, outputMax);
+    // Apply PWM output to control motor speed
+    applyPWM(abs(static_cast<int>(pidOutput)));
 
-    // Update motor based on the calculated output.
-    if (output >= 0) {
-        analogWrite(motorPinPWM, output);
-        digitalWrite(motorPinDirection, HIGH);
+    // Update previous error
+    previousError = error;
+
+    // Update motor state
+    motorState.isStopped = (pidOutput == 0);
+    motorState.speed = static_cast<int>(abs(pidOutput));
+}
+
+// Get the current direction of the motor
+int MotorPID::getDirection() const {
+    return motorState.direction;
+}
+
+// Get the current speed of the motor
+int MotorPID::getSpeed() const {
+    return motorState.speed;
+}
+
+// Check if the motor is stopped
+bool MotorPID::isStopped() const {
+    return motorState.isStopped;
+}
+
+// Helper function to update motor direction based on PID output
+void MotorPID::updateDirection(int pidOutput) {
+    if (pidOutput > 0) {
+        // Moving forward
+        motorState.direction = 1;
+        digitalWrite(directionPin1, HIGH);
+    } else if (pidOutput < 0) {
+        // Moving backward
+        motorState.direction = 2;
+        digitalWrite(directionPin1, LOW);
     } else {
-        analogWrite(motorPinPWM, -output);
-        digitalWrite(motorPinDirection, LOW);
+        // Brake or coast
+        motorState.direction = 0;
+        digitalWrite(directionPin1, LOW);  // Set to brake for simplicity
     }
-
-    // Save current position for the next iteration
-    prevPosition = currentPosition;
 }
 
-// Sets the PID constants.
-void MotorPID::setPID(float p, float i, float d) {
-    Kp = p;
-    Ki = i;
-    Kd = d;
-}
-
-// Sets the output limits for the motor PWM.
-void MotorPID::outputLimits(int min, int max) {
-    outputMin = min;
-    outputMax = max;
+// Helper function to apply PWM output to control motor speed
+void MotorPID::applyPWM(int pwmValue) {
+    analogWrite(pwmPin, pwmValue);
 }
