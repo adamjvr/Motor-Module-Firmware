@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 #include "MotorPID.h"
+#include "VirtualHBridge.h"
 
 // Motor control pins
 const int motorEncoderPinA = 2;    // Replace with your actual encoder pin A
@@ -34,6 +35,9 @@ const int motorBrakePin = 6;       // Replace with your actual motor brake pin
 
 // MotorPID object
 MotorPID motor(motorEncoderPinA, motorEncoderPinB, motorPWMPin, motorDirectionPin1);
+
+// VirtualHBridge object
+VirtualHBridge hBridge(motorDirectionPin1, motorDirectionPin2, motorPWMPin);
 
 // Uncomment the desired control input method
 //#define USB_CONTROL
@@ -78,6 +82,9 @@ void loop() {
     // Perform PID control to update the motor
     motor.compute();
 
+    // Update the virtual H-bridge based on motor control signals
+    hBridge.setMotor(motor.getDirection(), motor.getSpeed());
+
     // Add any additional logic as needed
 }
 #endif
@@ -118,6 +125,9 @@ void loop() {
 
     // Perform PID control to update the motor
     motor.compute();
+
+    // Update the virtual H-bridge based on motor control signals
+    hBridge.setMotor(motor.getDirection(), motor.getSpeed());
 
     // Add any additional logic as needed
 }
@@ -160,6 +170,9 @@ void loop() {
     // Perform PID control to update the motor
     motor.compute();
 
+    // Update the virtual H-bridge based on motor control signals
+    hBridge.setMotor(motor.getDirection(), motor.getSpeed());
+
     // Add any additional logic as needed
 }
 #endif
@@ -181,6 +194,9 @@ void loop() {
     digitalWrite(motorDirectionPin2, LOW);   // Set direction
     analogWrite(motorPWMPin, 200);            // Set speed (PWM)
     digitalWrite(motorBrakePin, LOW);        // Release brake
+
+    // Update the virtual H-bridge based on motor control signals
+    hBridge.setMotor(motor.getDirection(), motor.getSpeed());
 
     // Add any additional logic as needed
 }
